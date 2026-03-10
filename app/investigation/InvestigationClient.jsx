@@ -107,9 +107,11 @@ function Section1() {
     >
       <h1
         ref={h1Ref}
-        className="text-5xl sm:text-6xl md:text-7xl font-bold text-white leading-tight max-w-4xl"
+        className="text-5xl sm:text-6xl md:text-7xl font-bold text-white leading-tight max-w-5xl"
+        style={{ wordBreak: 'keep-all' }}
       >
-        California spent <span className="whitespace-nowrap">$24 billion</span> on homelessness.
+        California spent{' '}
+        <span className="whitespace-nowrap">$24 billion on homelessness.</span>
       </h1>
       <p
         ref={h2Ref}
