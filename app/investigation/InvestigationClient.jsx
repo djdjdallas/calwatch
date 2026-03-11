@@ -13,21 +13,21 @@ const CaseGrid = lazy(() => import('./CaseGrid'))
 const LTSC = {
   name: 'LTSC Community Development',
   contractAmount: 7_157_180,
-  fiscalYears: '2019-2023',
+  fiscalYears: '2022-2023',
   slug: 'ltsc-community-development',
 }
 
 const RIDLEY_THOMAS = {
   name: 'Mark Ridley-Thomas',
   convictionYear: 2023,
-  charges: 'federal corruption charges',
-  source: 'U.S. Department of Justice, 2023',
+  charges: 'bribery, conspiracy, and honest services fraud',
+  source: 'U.S. Attorney\u2019s Office, Central District of California, 2023',
 }
 
 const CONNECTIONS = [
   { label: '$7,157,180 in contracts', type: 'contract' },
   { label: 'Officer donated to Holly Mitchell For Senate', type: 'donation' },
-  { label: 'Officer donated to Committee Ridley-Thomas', type: 'donation' },
+  { label: 'Officer donated to Committee Ridley-Thomas For Assembly', type: 'donation' },
 ]
 
 function formatCurrency(amount) {
@@ -354,7 +354,7 @@ function Section3() {
           <p className="text-sm font-mono text-white/25 uppercase tracking-[0.2em] mb-2">Fiscal Years</p>
           <p className="text-lg text-white/60 font-mono">{LTSC.fiscalYears}</p>
           <p ref={sourceRef} className="text-[11px] text-cyan-400/40 font-mono mt-8">
-            Source: CA Open FI$Cal — Fiscal Year 2019-2023
+            Source: CA Open FI$Cal — Fiscal Year 2022-2023
           </p>
         </div>
       </div>
@@ -400,8 +400,9 @@ function Section4() {
           <span className="text-lg font-mono font-black text-red-400 uppercase tracking-widest">Convicted</span>
         </div>
         <p ref={textRef} className="text-lg text-white/60 leading-relaxed mb-4">
-          Ridley-Thomas was found guilty in <span className="text-white font-semibold">{RIDLEY_THOMAS.convictionYear}</span>{' '}
-          of {RIDLEY_THOMAS.charges} for <span className="text-red-400">steering Los Angeles city contracts in exchange for political favors</span>.
+          Ridley-Thomas, a former Los Angeles County Supervisor, was convicted in <span className="text-white font-semibold">{RIDLEY_THOMAS.convictionYear}</span>{' '}
+          of {RIDLEY_THOMAS.charges} for <span className="text-red-400">steering county contracts to USC in exchange for benefits directed to his son</span>.
+          His conviction is currently on appeal.
         </p>
         <p className="text-[10px] text-white/15 font-mono">Source: {RIDLEY_THOMAS.source}</p>
       </div>

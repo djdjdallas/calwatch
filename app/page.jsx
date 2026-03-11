@@ -2,24 +2,45 @@
 
 import { Suspense, useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import MoneyGraph from '@/components/MoneyGraph'
+import ArcDiagram from '@/components/ArcDiagram'
 import DetailPanel from '@/components/DetailPanel'
 import SearchBar from '@/components/SearchBar'
 import StatsBar from '@/components/StatsBar'
 import ExportButton from '@/components/ExportButton'
-import { loadGraphData } from '@/lib/dataLoader'
+import {
+  loadFraudTriangles,
+  loadFullNetwork,
+  loadEntityNeighborhood,
+  fetchDbStats,
+} from '@/lib/dataLoader'
 import { isDemoMode } from '@/lib/supabase'
 
+// View modes: 'fraud' (default), 'full', 'search'
 function HomeContent() {
   const [graphData, setGraphData] = useState(null)
+  const [viewMode, setViewMode] = useState('fraud')
+  const [loading, setLoading] = useState(true)
+  const [dbStats, setDbStats] = useState(null)
   const [selectedEntity, setSelectedEntity] = useState(null)
   const [focusEntityId, setFocusEntityId] = useState(null)
+  const [showFullConfirm, setShowFullConfirm] = useState(false)
   const graphContainerRef = useRef(null)
   const searchParams = useSearchParams()
   const router = useRouter()
 
+  // Load fraud triangles (default view) + DB stats on mount
   useEffect(() => {
-    loadGraphData().then(setGraphData)
+    setLoading(true)
+    Promise.all([loadFraudTriangles(), fetchDbStats()])
+      .then(([data, stats]) => {
+        setGraphData(data)
+        setDbStats(stats)
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error('Failed to load graph data:', err)
+        setLoading(false)
+      })
   }, [])
 
   // Handle ?entity= URL param
@@ -44,21 +65,71 @@ function HomeContent() {
   )
 
   const handleSearchSelect = useCallback(
-    (entity) => {
-      const node = graphData?.nodes?.find((n) => n.id === entity.id)
-      if (node) {
-        setSelectedEntity(node)
-        setFocusEntityId(entity.id)
+    async (entity) => {
+      try {
+        setLoading(true)
+        setViewMode('search')
+        const data = await loadEntityNeighborhood(entity.id)
+        if (data) {
+          setGraphData(data)
+          const node = data.nodes.find((n) => n.id === entity.id)
+          if (node) {
+            setSelectedEntity(node)
+            setFocusEntityId(entity.id)
+          }
+        }
         router.push(`/?entity=${entity.id}`, { scroll: false })
+      } catch (err) {
+        console.error('Search failed:', err)
+      } finally {
+        setLoading(false)
       }
     },
-    [graphData, router]
+    [router]
   )
 
   const handleClosePanel = useCallback(() => {
     setSelectedEntity(null)
     router.push('/', { scroll: false })
   }, [router])
+
+  const handleViewChange = useCallback(
+    async (mode) => {
+      if (mode === 'full') {
+        setShowFullConfirm(true)
+        return
+      }
+      if (mode === 'fraud') {
+        try {
+          setLoading(true)
+          setViewMode('fraud')
+          const data = await loadFraudTriangles()
+          setGraphData(data)
+          setSelectedEntity(null)
+        } catch (err) {
+          console.error('Failed to load fraud triangles:', err)
+        } finally {
+          setLoading(false)
+        }
+      }
+    },
+    []
+  )
+
+  const handleConfirmFull = useCallback(async () => {
+    try {
+      setShowFullConfirm(false)
+      setLoading(true)
+      setViewMode('full')
+      const data = await loadFullNetwork()
+      setGraphData(data)
+      setSelectedEntity(null)
+    } catch (err) {
+      console.error('Failed to load full network:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-canvas">
@@ -122,7 +193,37 @@ function HomeContent() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
-          <ExportButton graphRef={graphContainerRef} />
+          <ExportButton graphRef={graphContainerRef} graphData={graphData} />
+          <a
+            href="/flow"
+            className="text-xs text-cyan-400/70 hover:text-cyan-400 transition-colors"
+          >
+            Flow
+          </a>
+          <a
+            href="/investigation"
+            className="text-xs text-red-400/70 hover:text-red-400 transition-colors"
+          >
+            Investigation
+          </a>
+          <a
+            href="/cases"
+            className="text-xs text-white/40 hover:text-white/70 transition-colors"
+          >
+            Cases
+          </a>
+          <a
+            href="/search"
+            className="text-xs text-white/40 hover:text-white/70 transition-colors"
+          >
+            Search
+          </a>
+          <a
+            href="/map"
+            className="text-xs text-white/40 hover:text-white/70 transition-colors"
+          >
+            Map
+          </a>
           <a
             href="/about"
             className="text-xs text-white/40 hover:text-white/70 transition-colors"
@@ -132,20 +233,67 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* Graph */}
+      {/* Loading overlay */}
+      {loading && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#080808]/80">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <p className="text-xs text-white/40">Loading graph...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Full Network confirmation dialog */}
+      {showFullConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowFullConfirm(false)}
+          />
+          <div className="relative bg-[#141414] border border-white/10 rounded-xl shadow-2xl p-6 max-w-sm">
+            <h3 className="text-sm font-semibold text-white mb-2">
+              Load Full Network?
+            </h3>
+            <p className="text-xs text-white/50 mb-4 leading-relaxed">
+              This will load 193,000+ connections and may be slow. The graph
+              will be capped at 500 nodes for performance. Continue?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowFullConfirm(false)}
+                className="px-3 py-1.5 text-xs text-white/50 border border-white/10 rounded-md hover:border-white/20"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmFull}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-red-500/20 border border-red-500/40 rounded-md hover:bg-red-500/30"
+              >
+                Load Full Network
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Arc Diagram */}
       <div ref={graphContainerRef} className="w-full h-full">
-        {graphData && (
-          <MoneyGraph
+        {graphData && !loading && (
+          <ArcDiagram
             data={graphData}
             onNodeClick={handleNodeClick}
             selectedEntityId={selectedEntity?.id}
-            focusEntityId={focusEntityId}
           />
         )}
       </div>
 
       {/* Stats */}
-      <StatsBar stats={graphData?.stats} />
+      <StatsBar
+        stats={graphData?.stats}
+        dbStats={dbStats}
+        viewMode={viewMode}
+        onViewChange={handleViewChange}
+      />
 
       {/* Search */}
       <SearchBar onSelect={handleSearchSelect} />
