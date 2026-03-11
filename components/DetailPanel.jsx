@@ -21,6 +21,7 @@ const REL_LABELS = {
   received_contract: 'Received Contract',
   officer_of: 'Officer Of',
   donated_to: 'Donated To',
+  conflict_of_interest: 'Conflict of Interest',
   family_of: 'Family Of',
   board_member_of: 'Board Member Of',
 }
